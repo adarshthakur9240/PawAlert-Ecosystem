@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#ffffff", // <-- YAHAN CHANGE KIYA HAI (White color for mobile status bar)
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -46,6 +46,7 @@ export default async function RootLayout({
             attribute="class"
             defaultTheme="light"
             enableSystem={false}
+            forcedTheme="light" // <-- YAHAN CHANGE KIYA HAI (Hamesha Light mode lock rahega)
             disableTransitionOnChange
           >
             {children}
