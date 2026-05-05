@@ -19,13 +19,13 @@ type Product = {
 }
 
 const categories = [
-  { id: "all",      name: "All",      emoji: "🐾", bg: "bg-orange-50  dark:bg-orange-500/10" },
-  { id: "dog",      name: "Dog Food", emoji: "🐶", bg: "bg-amber-50   dark:bg-amber-500/10"  },
-  { id: "cat",      name: "Cat Food", emoji: "🐱", bg: "bg-blue-50    dark:bg-blue-500/10"   },
-  { id: "treats",   name: "Treats",   emoji: "🦴", bg: "bg-pink-50    dark:bg-pink-500/10"   },
-  { id: "toys",     name: "Toys",     emoji: "🎾", bg: "bg-green-50   dark:bg-green-500/10"  },
-  { id: "health",   name: "Health",   emoji: "💊", bg: "bg-teal-50    dark:bg-teal-500/10"   },
-  { id: "grooming", name: "Grooming", emoji: "✂️", bg: "bg-violet-50  dark:bg-violet-500/10" },
+  { id: "all",      name: "All",      emoji: "🐾", bg: "bg-orange-50" },
+  { id: "dog",      name: "Dog Food", emoji: "🐶", bg: "bg-amber-50"  },
+  { id: "cat",      name: "Cat Food", emoji: "🐱", bg: "bg-blue-50"   },
+  { id: "treats",   name: "Treats",   emoji: "🦴", bg: "bg-pink-50"   },
+  { id: "toys",     name: "Toys",     emoji: "🎾", bg: "bg-green-50"  },
+  { id: "health",   name: "Health",   emoji: "💊", bg: "bg-teal-50"   },
+  { id: "grooming", name: "Grooming", emoji: "✂️", bg: "bg-violet-50" },
 ]
 
 const SEED: Product[] = [
@@ -62,7 +62,6 @@ export default function PawStorePage() {
   const [loading, setLoading]               = React.useState(false)
   const loaderRef                           = React.useRef<HTMLDivElement>(null)
 
-  // 🔴 FIX: Sirf mount hone par cart ko read karega (Over-write nahi karega)
   React.useEffect(() => {
     const stored = localStorage.getItem("pawstore_cart")
     if (stored) {
@@ -91,7 +90,6 @@ export default function PawStorePage() {
 
   const filtered = activeCategory === "all" ? products : products.filter(p => p.category === activeCategory)
 
-  // 🔴 FIX: Jabardasti useEffect ki jagah ab directly action par localstorage update hoga
   const updateCart = (id: number, delta: number) => {
     setCart(prev => {
       const next = (prev[id] ?? 0) + delta
@@ -103,7 +101,6 @@ export default function PawStorePage() {
         newCart[id] = next
       }
 
-      // Action hone par hi save hoga, isliye delete nahi hoga data!
       localStorage.setItem("pawstore_cart", JSON.stringify(newCart))
       const cartProducts = products.filter(p => newCart[p.id])
       localStorage.setItem("pawstore_products", JSON.stringify(cartProducts))
@@ -119,10 +116,10 @@ export default function PawStorePage() {
   }, 0)
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-[#0a0a0a] font-sans font-semibold">
+    <div className="flex flex-col min-h-screen bg-gray-50 font-sans font-semibold">
       <TopBar />
 
-      <div className="sticky top-[68px] z-30 bg-white/98 dark:bg-[#0a0a0a]/98 backdrop-blur-md border-b border-gray-100 dark:border-white/5">
+      <div className="sticky top-[68px] z-30 bg-white/98 backdrop-blur-md border-b border-gray-100">
         <div className="flex items-center gap-5 overflow-x-auto px-4 py-3 no-scrollbar">
           {categories.map(cat => (
             <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className="flex flex-col items-center gap-1.5 shrink-0 transition-all">
@@ -159,15 +156,14 @@ export default function PawStorePage() {
             const badge = getCardBadge(product)
             return (
               <div key={`${product.id}-${i}`}
-                className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-white/5 flex flex-col group overflow-visible shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white rounded-xl border border-gray-200 flex flex-col group overflow-visible shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 onClick={(e) => {
-                  // Ensure button clicks don't trigger the card routing
                   if ((e.target as HTMLElement).closest('button')) return;
                   router.push(`/pawstore/product/${product.id}`);
                 }}
               >
                 <div className="relative">
-                  <div className="aspect-square overflow-hidden rounded-t-xl bg-gray-50 dark:bg-black/20">
+                  <div className="aspect-square overflow-hidden rounded-t-xl bg-gray-50">
                     <img src={product.img} alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-xl"
                       loading="lazy" />
@@ -184,7 +180,7 @@ export default function PawStorePage() {
                           initial={{ scale:0.85, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:0.85, opacity:0 }}
                           whileTap={{ scale:0.92 }}
                           onClick={(e) => { e.stopPropagation(); updateCart(product.id, 1); }}
-                          className="bg-white dark:bg-[#252525] text-[#E55934] dark:text-white border border-gray-200 dark:border-white/10 shadow-md hover:shadow-lg rounded-lg px-4 py-[7px] font-extrabold text-[11px] uppercase tracking-widest min-w-[64px] text-center">
+                          className="bg-white text-[#E55934] border border-gray-200 shadow-md hover:shadow-lg rounded-lg px-4 py-[7px] font-extrabold text-[11px] uppercase tracking-widest min-w-[64px] text-center">
                           ADD
                         </motion.button>
                       ) : (
@@ -204,14 +200,14 @@ export default function PawStorePage() {
                 <div className="h-[120px] px-3 pt-5 pb-3 flex flex-col justify-between">
                   <div className="space-y-0.5">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-[14px] font-bold text-gray-900 dark:text-white">₹{product.price}</span>
+                      <span className="text-[14px] font-bold text-gray-900">₹{product.price}</span>
                       <span className="text-[10px] text-gray-400 line-through">₹{product.mrp}</span>
                     </div>
-                    <h4 className="text-[12px] font-bold text-gray-700 dark:text-gray-200 leading-snug line-clamp-2 uppercase">
+                    <h4 className="text-[12px] font-bold text-gray-700 leading-snug line-clamp-2 uppercase">
                       {product.name}
                     </h4>
                   </div>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wide">{product.weight}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{product.weight}</p>
                 </div>
               </div>
             )
