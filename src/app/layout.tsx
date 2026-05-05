@@ -44,7 +44,7 @@ export default async function RootLayout({
         <body className={cn(outfit.className, "min-h-full flex flex-col bg-background text-foreground antialiased")} suppressHydrationWarning>
           <ThemeProvider
             attribute="class"
-            defaultTheme="dark"
+            defaultTheme="light"
             enableSystem={false}
             disableTransitionOnChange
           >
