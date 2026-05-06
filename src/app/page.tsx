@@ -192,7 +192,7 @@ export default function LandingPage() {
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="w-24 h-24 bg-[#E55934]/15 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-[#E55934]/20 border border-[#E55934]/20 backdrop-blur-sm"
             >
-              <Heart className="w-12 h-12 text-[#E55934] fill-[#E55934]" />
+              <img src='/vercel.svg' alt="Logo" className="w-12 h-12" />
             </motion.div>
           </motion.div>
 
