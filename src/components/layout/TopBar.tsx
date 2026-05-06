@@ -82,9 +82,7 @@ export function TopBar() {
             {/* Left: Logo + Location */}
             <div className="flex items-center gap-2">
               <Link href="/home" className="flex items-center gap-2 group">
-                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
-                  P
-                </div>
+                <img src='/pawalert-brand.svg' alt="PawAlert" className="w-8 h-8 group-hover:scale-105 transition-transform" />
               </Link>
               <button onClick={detectLocation} className="flex flex-col items-start group hover:opacity-80 transition-opacity text-left max-w-[180px]" disabled={isDetecting}>
                 <span className="text-[10px] text-gray-400 font-black uppercase tracking-tighter flex items-center gap-1">
