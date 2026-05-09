@@ -113,7 +113,7 @@ export default function NewReportPage() {
     const previewUrl = URL.createObjectURL(file)
     setImagePreview(previewUrl)
 
-    // Convert to base64 for Gemini
+    // Convert to base64 for AI API
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const result = ev.target?.result as string
@@ -127,7 +127,7 @@ export default function NewReportPage() {
     reader.readAsDataURL(file)
   }
 
-  // ── 3. GEMINI AI ANALYSIS ────────────────────────────────────────────────
+  // ── 3. AI ANALYSIS (Hits your Backend Route) ─────────────────────────────
   const runAiAnalysis = async (base64: string, mimeType: string) => {
     setAnalyzing(true)
     setAnalyzeError(null)
@@ -179,6 +179,7 @@ export default function NewReportPage() {
       }
     }
 
+    // Insert Record into Supabase DB
     const { error } = await supabase.from("reports").insert([
       {
         reporter_id: user.id,
@@ -202,6 +203,26 @@ export default function NewReportPage() {
     setSubmitting(false)
 
     if (!error) {
+      // ====================================================================
+      // 🚀 NEW: FIRE EMAIL ALERT AFTER SUCCESSFUL SUPABASE INSERT
+      // ====================================================================
+      try {
+        await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            animalType: animalType,
+            location: location.status === "detected" ? location.label : "Location Not Shared",
+            urgency: urgency,
+          }),
+        });
+        console.log("Email alert sent successfully!");
+      } catch (emailErr) {
+        // If email fails, we log it but DON'T stop the user from seeing the success screen
+        console.error("Failed to send email alert:", emailErr);
+      }
+      // ====================================================================
+
       setSubmitted(true)
       setTimeout(() => router.push("/home"), 2500)
     } else {
@@ -322,7 +343,7 @@ export default function NewReportPage() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   <span className="text-[11px] font-black uppercase tracking-wider">
-                    Gemini AI Assessment
+                    AI Assessment
                   </span>
                   <span className="ml-auto text-[10px] font-black uppercase px-2 py-0.5 bg-current/10 rounded-md border border-current/20">
                     {aiAnalysis.urgency.toUpperCase()}
