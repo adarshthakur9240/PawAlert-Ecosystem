@@ -102,7 +102,7 @@ export default function NewReportPage() {
     )
   }, [])
 
-  // ── 2. IMAGE CAPTURE + PREVIEW ───────────────────────────────────────────
+  // ── 2. IMAGE CAPTURE + PREVIEW + COMPRESSION ─────────────────────────────
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -115,18 +115,32 @@ export default function NewReportPage() {
     const previewUrl = URL.createObjectURL(file)
     setImagePreview(previewUrl)
 
-    // Convert to base64 for AI API
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      const result = ev.target?.result as string
-      // Strip the data URL prefix (keep only the base64 payload)
-      const base64 = result.split(",")[1]
-      setImageBase64(base64)
+    // 🚀 NEW FIX: Automatically shrink large HD phone photos to avoid 500 Vercel limits
+    const img = new Image();
+    img.src = previewUrl;
+    img.onload = async () => {
+      const canvas = document.createElement("canvas");
+      const MAX_WIDTH = 800; // Shrink to 800px width max
+      let scaleSize = 1;
+      
+      if (img.width > MAX_WIDTH) {
+        scaleSize = MAX_WIDTH / img.width;
+      }
+      
+      canvas.width = img.width * scaleSize;
+      canvas.height = img.height * scaleSize;
 
-      // Auto-trigger AI analysis
-      await runAiAnalysis(base64, file.type)
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Compress to JPEG with 60% quality
+      const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.6);
+      const base64 = compressedDataUrl.split(",")[1];
+      setImageBase64(base64);
+
+      // Send compressed image to AI immediately
+      await runAiAnalysis(base64, "image/jpeg");
     }
-    reader.readAsDataURL(file)
   }
 
   // ── 3. AI ANALYSIS (Hits your Backend Route) ─────────────────────────────
@@ -149,7 +163,7 @@ export default function NewReportPage() {
       // 🚀 SMART TRIAGE CHECK
       if (data.isValid) {
         // Pre-fill form fields from AI only if valid
-        if (data.animalType) setAnimalType(data.animalType)
+        if (data.animalType && data.animalType !== "None") setAnimalType(data.animalType)
         if (data.urgency) setUrgency(data.urgency)
       } else {
         // Notify user if it's not a valid animal or if it's healthy
@@ -176,7 +190,7 @@ export default function NewReportPage() {
     setSubmitting(true)
 
     // ====================================================================
-    // 🛡️ STEP 0: ENSURE PROFILE EXISTS (Fixes Foreign Key Error)
+    // 🛡️ THE FIX: SAFE PROFILE CREATION (No Upsert/Foreign Key errors)
     // ====================================================================
     try {
       // Check if profile exists for this user using maybeSingle to avoid throw on 0 rows
@@ -193,6 +207,7 @@ export default function NewReportPage() {
           {
             clerk_id: user.id,
             full_name: user.fullName || "Citizen Rescuer",
+            email: user.primaryEmailAddress?.emailAddress || "",
             karma_points: 0,
             current_streak: 0,
             max_streak: 0
@@ -246,23 +261,20 @@ export default function NewReportPage() {
       },
     ])
 
-    setSubmitting(false)
-
     if (!error) {
 
       // ====================================================================
       // 🚀 NEW: KARMA & STREAK UPDATE LOGIC
       // ====================================================================
       try {
-        // FIX: "id" ki jagah "clerk_id" use kar rahe hain taaki 400 Bad Request na aaye
         const { data: profile, error: fetchErr } = await supabase
           .from("profiles")
           .select("last_report_date, current_streak, max_streak, karma_points")
-          .eq("clerk_id", user.id) // <--- MAIN FIX 1
+          .eq("clerk_id", user.id) 
           .single();
 
         if (fetchErr) {
-          console.error("Profile DB Fetch Error (Check if column is clerk_id):", fetchErr.message);
+          console.error("Profile DB Fetch Error:", fetchErr.message);
         }
 
         if (profile) {
@@ -298,11 +310,10 @@ export default function NewReportPage() {
             .update({
               current_streak: newStreak,
               max_streak: newMaxStreak,
-              // rescue_streak: newStreak, 
               last_report_date: new Date().toISOString(),
               karma_points: newKarma
             })
-            .eq("clerk_id", user.id); // <--- MAIN FIX 2
+            .eq("clerk_id", user.id); 
 
           if (updateErr) {
             console.error("Profile DB Update Error:", updateErr.message);
@@ -332,11 +343,13 @@ export default function NewReportPage() {
         console.error("Failed to send email alert:", emailErr);
       }
 
+      setSubmitting(false)
       setSubmitted(true)
       setTimeout(() => router.push("/home"), 2500)
     } else {
       console.error("Submit error:", error.message)
-      alert("Failed to submit report. Please try again.")
+      toast.error("Failed to submit report. Please try again.")
+      setSubmitting(false)
     }
   }
 
