@@ -21,12 +21,14 @@ import {
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { supabase } from "@/lib/supabase"
+import toast from "react-hot-toast" // 🚀 IMPORTED TOAST FOR AI WARNINGS
 
 type AiAnalysis = {
   animalType: string
   condition: string
   advice: string
   urgency: "critical" | "high" | "medium" | "low"
+  isValid: boolean // 🚀 ADDED ISVALID FOR SMART TRIAGE
 }
 
 type LocationState =
@@ -144,9 +146,15 @@ export default function NewReportPage() {
       const data: AiAnalysis = await res.json()
       setAiAnalysis(data)
 
-      // Pre-fill form fields from AI
-      if (data.animalType) setAnimalType(data.animalType)
-      if (data.urgency) setUrgency(data.urgency)
+      // 🚀 SMART TRIAGE CHECK
+      if (data.isValid) {
+        // Pre-fill form fields from AI only if valid
+        if (data.animalType) setAnimalType(data.animalType)
+        if (data.urgency) setUrgency(data.urgency)
+      } else {
+        // Notify user if it's not a valid animal or if it's healthy
+        toast.error(data.advice || "Invalid image detected.", { duration: 5000 })
+      }
     } catch (err: any) {
       setAnalyzeError("AI analysis unavailable. Please fill in details manually.")
     } finally {
@@ -159,7 +167,45 @@ export default function NewReportPage() {
     e.preventDefault()
     if (!user) return
 
+    // 🚀 BLOCK SUBMISSION IF AI DECLARES INVALID
+    if (aiAnalysis && !aiAnalysis.isValid) {
+      toast.error("Please upload a valid picture of an injured stray before submitting.");
+      return;
+    }
+
     setSubmitting(true)
+
+    // ====================================================================
+    // 🛡️ STEP 0: ENSURE PROFILE EXISTS (Fixes Foreign Key Error)
+    // ====================================================================
+    try {
+      // Check if profile exists for this user using maybeSingle to avoid throw on 0 rows
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("clerk_id")
+        .eq("clerk_id", user.id)
+        .maybeSingle();
+
+      // If no profile exists, create a basic one before proceeding
+      if (!existingProfile) {
+        console.log("Creating missing profile for production user...");
+        const { error: insertProfileErr } = await supabase.from("profiles").insert([
+          {
+            clerk_id: user.id,
+            full_name: user.fullName || "Citizen Rescuer",
+            karma_points: 0,
+            current_streak: 0,
+            max_streak: 0
+          }
+        ]);
+        if (insertProfileErr) {
+          console.error("Failed to auto-create profile:", insertProfileErr);
+        }
+      }
+    } catch (profileCheckErr) {
+      console.error("Profile check error:", profileCheckErr);
+    }
+    // ====================================================================
 
     let imageUrl: string | null = null
 
@@ -401,22 +447,26 @@ export default function NewReportPage() {
             {/* ── AI ANALYSIS RESULT ──────────────────────────────────── */}
             {aiAnalysis && !analyzing && (
               <div
-                className={`mx-4 mb-4 mt-3 border rounded-2xl p-4 space-y-2 ${urgencyColors[aiAnalysis.urgency] || urgencyColors.medium}`}
+                className={`mx-4 mb-4 mt-3 border rounded-2xl p-4 space-y-2 ${aiAnalysis.isValid ? (urgencyColors[aiAnalysis.urgency] || urgencyColors.medium) : 'bg-red-50 border-red-200 text-red-700'}`}
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   <span className="text-[11px] font-black uppercase tracking-wider">
                     AI Assessment
                   </span>
-                  <span className="ml-auto text-[10px] font-black uppercase px-2 py-0.5 bg-current/10 rounded-md border border-current/20">
-                    {aiAnalysis.urgency.toUpperCase()}
-                  </span>
+                  {aiAnalysis.isValid && (
+                    <span className="ml-auto text-[10px] font-black uppercase px-2 py-0.5 bg-current/10 rounded-md border border-current/20">
+                      {aiAnalysis.urgency.toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs leading-relaxed font-medium">{aiAnalysis.advice}</p>
-                <div className="flex items-center gap-3 text-[10px] font-bold opacity-70">
-                  <span>🐾 {aiAnalysis.animalType}</span>
-                  <span>📊 {aiAnalysis.condition}</span>
-                </div>
+                {aiAnalysis.isValid && (
+                  <div className="flex items-center gap-3 text-[10px] font-bold opacity-70">
+                    <span>🐾 {aiAnalysis.animalType}</span>
+                    <span>📊 {aiAnalysis.condition}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -569,8 +619,8 @@ export default function NewReportPage() {
           {/* ── SUBMIT BUTTON ────────────────────────────────────────────── */}
           <Button
             type="submit"
-            className="w-full h-14 text-lg font-black rounded-2xl shadow-xl shadow-primary/25 gap-2"
-            disabled={submitting || analyzing}
+            className="w-full h-14 text-lg font-black rounded-2xl shadow-xl shadow-primary/25 gap-2 disabled:opacity-50"
+            disabled={submitting || analyzing || (aiAnalysis ? !aiAnalysis.isValid : false)}
           >
             {submitting ? (
               <>
