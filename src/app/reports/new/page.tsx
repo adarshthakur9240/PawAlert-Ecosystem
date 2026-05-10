@@ -203,8 +203,73 @@ export default function NewReportPage() {
     setSubmitting(false)
 
     if (!error) {
+
       // ====================================================================
-      // 🚀 NEW: FIRE EMAIL ALERT AFTER SUCCESSFUL SUPABASE INSERT
+      // 🚀 NEW: KARMA & STREAK UPDATE LOGIC
+      // ====================================================================
+      try {
+        // FIX: "id" ki jagah "clerk_id" use kar rahe hain taaki 400 Bad Request na aaye
+        const { data: profile, error: fetchErr } = await supabase
+          .from("profiles")
+          .select("last_report_date, current_streak, max_streak, karma_points")
+          .eq("clerk_id", user.id) // <--- MAIN FIX 1
+          .single();
+
+        if (fetchErr) {
+          console.error("Profile DB Fetch Error (Check if column is clerk_id):", fetchErr.message);
+        }
+
+        if (profile) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          let newStreak = profile.current_streak || 0;
+          let newMaxStreak = profile.max_streak || 0;
+          let newKarma = (profile.karma_points || 0) + 50; 
+
+          if (profile.last_report_date) {
+            const lastReport = new Date(profile.last_report_date);
+            lastReport.setHours(0, 0, 0, 0);
+
+            const diffTime = Math.abs(today.getTime() - lastReport.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 1) {
+              newStreak += 1;
+            } else if (diffDays > 1) {
+              newStreak = 1;
+            }
+          } else {
+            newStreak = 1;
+          }
+
+          if (newStreak > newMaxStreak) {
+            newMaxStreak = newStreak;
+          }
+
+          const { error: updateErr } = await supabase
+            .from("profiles")
+            .update({
+              current_streak: newStreak,
+              max_streak: newMaxStreak,
+              // rescue_streak: newStreak, 
+              last_report_date: new Date().toISOString(),
+              karma_points: newKarma
+            })
+            .eq("clerk_id", user.id); // <--- MAIN FIX 2
+
+          if (updateErr) {
+            console.error("Profile DB Update Error:", updateErr.message);
+          } else {
+            console.log("Karma and Streak Updated Successfully! 🏆");
+          }
+        }
+      } catch (profileErr) {
+        console.error("Failed to update profile streak/karma:", profileErr);
+      }
+
+      // ====================================================================
+      // 🚀 FIRE EMAIL ALERT AFTER SUCCESSFUL SUPABASE INSERT
       // ====================================================================
       try {
         await fetch("/api/send-email", {
@@ -218,10 +283,8 @@ export default function NewReportPage() {
         });
         console.log("Email alert sent successfully!");
       } catch (emailErr) {
-        // If email fails, we log it but DON'T stop the user from seeing the success screen
         console.error("Failed to send email alert:", emailErr);
       }
-      // ====================================================================
 
       setSubmitted(true)
       setTimeout(() => router.push("/home"), 2500)

@@ -53,18 +53,31 @@ export default function HomePage() {
   const certificateRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // --- DYNAMIC KARMA ENGINE ---
-  // 1. Filter reports belonging to the current user
+  // --- 🚀 NEW DYNAMIC KARMA & STREAK ENGINE ---
+  // 1. Filter reports belonging to the current user for certificate
   const myReports = reports.filter(r => r.reporter_id === user?.id);
-
-  // 2. Calculate dynamic stats (1 Report = 50 Karma)
-  const calculatedKarma = (profile?.karma_points || 0) + (myReports.length * 50);
-  const calculatedLevel = Math.floor(calculatedKarma / 100) + 1;
-  const calculatedStreak = myReports.length > 0 ? Math.max(profile?.rescue_streak || 1, 1) : 0;
-
-  // 3. Calculate rescued count SPECIFIC to the user for the certificate
-  // const rescuedCount = myReports.filter(r => r.status === 'rescued').length;
   const rescuedCount = myReports.length;
+
+  // 2. Fetch direct Karma from DB
+  const currentKarma = profile?.karma_points || 0;
+  const calculatedLevel = Math.floor(currentKarma / 100) + 1;
+
+  // 3. Calculate Streak Logic (Checking if broken)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const lastReportStr = profile?.last_report_date;
+  const lastReport = lastReportStr ? new Date(lastReportStr) : null;
+  if (lastReport) lastReport.setHours(0, 0, 0, 0);
+
+  // Agar last report kal se bhi purani hai, matlab streak toot chuki hai
+  const isStreakBroken = lastReport 
+    ? Math.floor((today.getTime() - lastReport.getTime()) / (1000 * 60 * 60 * 24)) > 1
+    : false;
+
+  const displayStreak = isStreakBroken ? 0 : (profile?.current_streak || 0);
+  const maxStreak = profile?.max_streak || 0;
+  // ---------------------------------------------
 
   React.useEffect(() => {
     async function fetchData() {
@@ -160,10 +173,14 @@ export default function HomePage() {
                   </Badge>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">{profile?.role || 'Citizen'} Rescuer</span>
                 </div>
-                <h3 className="text-3xl font-black italic tracking-tighter">{calculatedKarma} Karma</h3>
+                <h3 className="text-3xl font-black italic tracking-tighter">{currentKarma} Karma</h3>
                 <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider">
                   <Zap className="w-3.5 h-3.5 fill-current text-yellow-300" />
-                  <span>{calculatedStreak} Day Rescue Streak</span>
+                  {displayStreak > 0 ? (
+                    <span>{displayStreak} DAY RESCUE STREAK</span>
+                  ) : (
+                    <span>MAX STREAK: {maxStreak} DAYS</span>
+                  )}
                 </div>
               </div>
               

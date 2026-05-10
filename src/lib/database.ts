@@ -10,6 +10,9 @@ export type Profile = {
   rescue_streak: number;
   avatar_url: string | null;
   created_at: string;
+  last_report_date?: string | null;
+  current_streak?: number;
+  max_streak?: number;
 };
 
 export type Report = {
